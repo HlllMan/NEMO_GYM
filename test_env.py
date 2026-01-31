@@ -8,12 +8,12 @@ sys.path.append("/public/data0/HOME/jdnlp1004/miaoji.norman/miaoji")
 print("🚀 正在对 NEMO_GYM 全量 6 模块进行压力测试...\n")
 
 try:
-    from math_with_judge.app_copy import score_fn as math_fn
-    from code_gen.app_copy import score_fn as code_fn
-    from instruction_following.app_copy import score_fn as if_fn
-    from structured_outputs.app_copy import score_fn as so_fn
-    from mcqa.app_copy import score_fn as mcqa_fn
-    from workspace_assistant.app_copy import score_fn as wa_fn
+    from mjnemogym.math_with_judge.app_copy import score_fn as math_fn
+    from mjnemogym.code_gen.app_copy import score_fn as code_fn
+    from mjnemogym.instruction_following.app_copy import score_fn as if_fn
+    from mjnemogym.structured_outputs.app_copy import score_fn as so_fn
+    from mjnemogym.mcqa.app_copy import score_fn as mcqa_fn
+    from mjnemogym.workspace_assistant.app_copy import score_fn as wa_fn
 except ImportError as e:
     print(f"❌ 导入失败，请检查 PYTHONPATH 或文件夹完整性: {e}")
     sys.exit(1)

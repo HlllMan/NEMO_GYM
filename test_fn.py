@@ -2,21 +2,7 @@
 使用示例
 """
 
-from math_with_judge.app_copy import score_fn as math_score_fn
-from code_gen.app_copy import score_fn as code_score_fn
-from mcqa.app_copy import score_fn as mcqa_score_fn
-from instruction_following.app_copy import score_fn as if_score_fn
-from structured_outputs.app_copy import score_fn as so_score_fn
-from workspace_assistant.app_copy import score_fn as wa_score_fn   
-
-score_fn_dict={
-    "math": math_score_fn,
-    "code": code_score_fn,
-    "mcqa": mcqa_score_fn,
-    "if": if_score_fn,
-    "so": so_score_fn,
-    "wa": wa_score_fn,
-}
+from mjnemogym import score_fn_dict
 
 
 
