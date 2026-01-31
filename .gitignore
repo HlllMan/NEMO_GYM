@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.venv/
+venv/
+env/
+.Python
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Misc
+.DS_Store
+*.log
+.eval
+wandb/
