@@ -149,7 +149,7 @@ class UnitTests:
 
 def score_fn(
     model_output: str,
-    unit_tests: Dict[str, Any],
+    verifier_unit_tests: Dict[str, Any],
     unit_test_timeout_secs: int = 10,
     debug: bool = False,
 ) -> float:
@@ -182,9 +182,9 @@ def score_fn(
     # 2) 验证并解析单元测试
     try:
         tests = UnitTests(
-            inputs=unit_tests["inputs"],
-            outputs=unit_tests["outputs"],
-            fn_name=unit_tests.get("fn_name"),
+            inputs=verifier_unit_tests["inputs"],
+            outputs=verifier_unit_tests["outputs"],
+            fn_name=verifier_unit_tests.get("fn_name"),
         )
     except (KeyError, TypeError) as e:
         if debug:

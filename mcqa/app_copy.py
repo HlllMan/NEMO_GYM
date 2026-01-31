@@ -219,7 +219,7 @@ def _verify_answer(
 
 def score_fn(
     model_output: str,
-    expected_answer: str,
+    label: str,
     options: Optional[list[dict[str, str]]] = None,
     grading_mode: Literal[
         "strict_single_letter_boxed",
@@ -252,5 +252,5 @@ def score_fn(
         ... )
         1.0
     """
-    reward, _ = _verify_answer(model_output, expected_answer, options, grading_mode, template_metadata)
+    reward, _ = _verify_answer(model_output, label, options, grading_mode, template_metadata)
     return reward
