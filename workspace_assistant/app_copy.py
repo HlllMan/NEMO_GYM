@@ -49,7 +49,7 @@
 
 from typing import Any, Dict, List, Union
 
-from resources_servers.workplace_assistant.utils import is_correct
+from .utils import is_correct
 
 
 def score_fn(
