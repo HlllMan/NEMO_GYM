@@ -27,7 +27,7 @@ pandas==2.2.3
 math-verify==0.8.0
 openapi-schema-validator==0.6.3
 datasets
-git+https://github.com/abukharin-nv/verifiable-instructions.git
+# git+https://github.com/abukharin-nv/verifiable-instructions.git
 https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
 
 
