@@ -15,27 +15,27 @@
 import json
 from typing import Dict, List
 
-from resources_servers.workplace_assistant.workplace_assistant_tools.analytics import (
+from mjnemogym.workplace_assistant.workplace_assistant_tools.analytics import (
     AnalyticsTool,
     analytics_tool_schemas,
 )
-from resources_servers.workplace_assistant.workplace_assistant_tools.calendar import (
+from mjnemogym.workplace_assistant.workplace_assistant_tools.calendar import (
     CalendarTool,
     calendar_tool_schemas,
 )
-from resources_servers.workplace_assistant.workplace_assistant_tools.company_directory import (
+from mjnemogym.workplace_assistant.workplace_assistant_tools.company_directory import (
     CompanyDirectoryTool,
     company_directory_tool_schemas,
 )
-from resources_servers.workplace_assistant.workplace_assistant_tools.customer_relationship_manager import (
+from mjnemogym.workplace_assistant.workplace_assistant_tools.customer_relationship_manager import (
     CustomerRelationshipManagerTool,
     customer_relationship_manager_tool_schemas,
 )
-from resources_servers.workplace_assistant.workplace_assistant_tools.email import (
+from mjnemogym.workplace_assistant.workplace_assistant_tools.email import (
     EmailTool,
     email_tool_schemas,
 )
-from resources_servers.workplace_assistant.workplace_assistant_tools.project_management import (
+from mjnemogym.workplace_assistant.workplace_assistant_tools.project_management import (
     ProjectManagementTool,
     project_management_tool_schemas,
 )

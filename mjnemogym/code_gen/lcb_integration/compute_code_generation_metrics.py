@@ -27,8 +27,8 @@ import numpy as np
 import ray
 from tqdm import tqdm
 
-from lcb_integration.pass_k_utils import compute_metrics_from_results
-from lcb_integration.testing_util import run_test
+from mjnemogym.code_gen.lcb_integration.pass_k_utils import compute_metrics_from_results
+from mjnemogym.code_gen.lcb_integration.testing_util import run_test
 
 
 sys.set_int_max_str_digits(50000)
