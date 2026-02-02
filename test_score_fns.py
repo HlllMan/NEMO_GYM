@@ -7,8 +7,7 @@ retrieves extra_info from the parquet file using the saved index,
 and passes data directly to score_fn to mimic verl reward manager behavior.
 
 NOTE: Uses HuggingFace datasets (same as verl) instead of pandas.
-      HuggingFace datasets automatically converts numpy arrays to Python lists,
-      so no explicit conversion is needed.
+      Handles both native dict and JSON-serialized extra_info (v5+ parquet).
 
 Usage:
     python test_score_fns.py
@@ -62,9 +61,13 @@ def test_all_domains():
         print(f"Testing {data_source} (parquet index: {parquet_index})")
         print(f"{'='*60}")
 
-        # Get extra_info from dataset - HuggingFace datasets returns Python types
+        # Get extra_info from dataset
         row = df[parquet_index]
         extra_info = row["extra_info"]
+
+        # Handle JSON-serialized extra_info (from v5+ parquet files)
+        if isinstance(extra_info, str):
+            extra_info = json.loads(extra_info)
 
         print(f"Data source in parquet: {row['data_source']}")
 
