@@ -55,6 +55,49 @@ def get_score_fn(data_source: str):
     return score_fn_dict[data_source]
 
 
+def verl_compute_score(
+    data_source: str,
+    solution_str: str,
+    ground_truth: str,
+    extra_info: dict = None,
+    **kwargs,
+) -> float:
+    """
+    Compute score compatible with verl's dapo.py compute_score interface.
+
+    Drop-in replacement for verl.utils.reward_score.default_compute_score
+    for NemoGym data sources.
+
+    Args:
+        data_source: The data_source from parquet (e.g., "nemogym_math")
+        solution_str: Model's generated response
+        ground_truth: Ground truth from reward_model.ground_truth (unused by most domains)
+        extra_info: Domain-specific metadata from parquet extra_info field
+        **kwargs: Additional arguments (ignored)
+
+    Returns:
+        float: Score value (typically 0.0 or 1.0)
+
+    Raises:
+        KeyError: If data_source is not a NemoGym domain
+
+    Usage in dapo.py:
+        from mjnemogym import verl_compute_score
+        # Then pass as compute_score parameter or modify default_compute_score
+    """
+    if data_source not in score_fn_dict:
+        raise KeyError(
+            f"Unknown NemoGym data_source: {data_source}. "
+            f"Available: {list(score_fn_dict.keys())}"
+        )
+
+    if extra_info is None:
+        extra_info = {}
+
+    score_fn = score_fn_dict[data_source]
+    return float(score_fn(solution_str, extra_info))
+
+
 __all__ = [
     "math_score_fn",
     "code_score_fn",
@@ -64,4 +107,5 @@ __all__ = [
     "wa_score_fn",
     "score_fn_dict",
     "get_score_fn",
+    "verl_compute_score",
 ]
