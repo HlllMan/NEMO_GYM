@@ -29,7 +29,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from mjnemogym import score_fn_dict
 
 
-PARQUET_PATH = Path(__file__).parent.parent.parent / "preproc_nemogym/test_output/test-512.parquet"
+PARQUET_PATH = Path(__file__).parent.parent.parent.parent / "preproc_nemogym/test_output/test-512.parquet"
 SAMPLES_PATH = Path(__file__).parent / "test_samples.jsonl"
 
 

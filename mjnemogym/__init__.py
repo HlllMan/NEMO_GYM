@@ -21,16 +21,34 @@ from mjnemogym.mcqa.score import score_fn as mcqa_score_fn
 from mjnemogym.instruction_following.score import score_fn as if_score_fn
 from mjnemogym.structured_outputs.score import score_fn as so_score_fn
 from mjnemogym.workplace_assistant.score import score_fn as wa_score_fn
+import functools
+
+
+def extract_final_answer(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        if "model_output" in kwargs and isinstance(kwargs["model_output"], str):
+            kwargs["model_output"] = kwargs["model_output"].split("<|end_of_thought|>")[
+                -1
+            ]
+        elif args and isinstance(args[0], str):
+            args_list = list(args)
+            args_list[0] = args_list[0].split("<|end_of_thought|>")[-1]
+            args = tuple(args_list)
+
+        return func(*args, **kwargs)
+
+    return wrapper
+
 
 # Map data_source values (from parquet) to score functions
 score_fn_dict = {
-    # Primary data_source names (from parquet)
-    "nemogym_math": math_score_fn,
-    "nemogym_code": code_score_fn,
-    "nemogym_mcqa": mcqa_score_fn,
-    "nemogym_if": if_score_fn,
-    "nemogym_structured": so_score_fn,
-    "nemogym_workplace": wa_score_fn,
+    "nemogym_math": extract_final_answer(math_score_fn),
+    "nemogym_code": extract_final_answer(code_score_fn),
+    "nemogym_mcqa": extract_final_answer(mcqa_score_fn),
+    "nemogym_if": extract_final_answer(if_score_fn),
+    "nemogym_structured": extract_final_answer(so_score_fn),
+    "nemogym_workplace": extract_final_answer(wa_score_fn),
 }
 
 
