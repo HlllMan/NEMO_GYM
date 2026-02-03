@@ -28,22 +28,30 @@ def score_single(args: Tuple[int, dict]) -> Tuple[int, dict, float]:
     """
     line_idx, item = args
 
-    data_source = item.get('data_source', '')
-    response = item.get('response', '')
-    extra_info = item.get('extra_info', {})
+    data_source = item.get("data_source", "")
+    response = item.get("response", "")
+    extra_info = item.get("extra_info", {})
 
     score_fn = score_fn_dict[data_source]
     reward = score_fn(response, extra_info)
 
+    print(f"{data_source}_index_{extra_info['index']}_rew_{reward}", flush=True)
     return (line_idx, item, reward)
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Parallel scoring for all NemoGym domains')
-    parser.add_argument('--input', '-i', required=True, help='Input JSONL file')
-    parser.add_argument('--output', '-o', required=True, help='Output JSONL file')
-    parser.add_argument('--workers', '-w', type=int, default=None,
-                        help='Number of workers (default: CPU count - 16)')
+    parser = argparse.ArgumentParser(
+        description="Parallel scoring for all NemoGym domains"
+    )
+    parser.add_argument("--input", "-i", required=True, help="Input JSONL file")
+    parser.add_argument("--output", "-o", required=True, help="Output JSONL file")
+    parser.add_argument(
+        "--workers",
+        "-w",
+        type=int,
+        default=None,
+        help="Number of workers (default: CPU count - 16)",
+    )
 
     args = parser.parse_args()
 
@@ -66,12 +74,12 @@ def main():
     print(f"\nLoading data from {args.input}...")
     data = []
     domain_counts = {}
-    with open(args.input, 'r') as f:
+    with open(args.input, "r") as f:
         for line_idx, line in enumerate(f):
             item = json.loads(line)
             data.append((line_idx, item))
             # Count domains
-            ds = item.get('data_source', 'unknown')
+            ds = item.get("data_source", "unknown")
             domain_counts[ds] = domain_counts.get(ds, 0) + 1
 
     total = len(data)
@@ -86,7 +94,7 @@ def main():
     domain_rewards = {}
 
     # Use spawn context for clean process isolation
-    ctx = multiprocessing.get_context('spawn')
+    ctx = multiprocessing.get_context("spawn")
 
     start_time = time.time()
 
@@ -97,18 +105,19 @@ def main():
             for future in as_completed(futures):
                 try:
                     line_idx, item, reward = future.result()
-                    item['reward'] = reward
+                    item["reward"] = reward
                     results[line_idx] = item
                     total_reward += reward
 
                     # Track per-domain rewards
-                    ds = item.get('data_source', 'unknown')
-                    domain_rewards[ds] = domain_rewards.get(ds, 0) + reward
+                    domain_rewards[item["data_source"]] = (
+                        domain_rewards.get(ds, 0) + reward
+                    )
 
                 except Exception as e:
                     line_idx = futures[future]
                     results[line_idx] = data[line_idx][1]
-                    results[line_idx]['reward'] = 0.0
+                    results[line_idx]["reward"] = 0.0
 
                 pbar.update(1)
                 pbar.set_postfix(reward=f"{total_reward:.0f}", refresh=False)
@@ -117,9 +126,9 @@ def main():
 
     # Write results in original order
     print(f"\nWriting results to {args.output}...")
-    with open(args.output, 'w') as f:
+    with open(args.output, "w") as f:
         for item in results:
-            f.write(json.dumps(item, ensure_ascii=False) + '\n')
+            f.write(json.dumps(item, ensure_ascii=False) + "\n")
 
     # Summary
     print(f"\n" + "=" * 60)
@@ -140,6 +149,6 @@ def main():
     print(f"=" * 60)
 
 
-if __name__ == '__main__':
-    multiprocessing.set_start_method('spawn', force=True)
+if __name__ == "__main__":
+    multiprocessing.set_start_method("spawn", force=True)
     main()
