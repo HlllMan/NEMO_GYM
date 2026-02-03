@@ -22,7 +22,7 @@ def _ensure_nltk_data():
 
 
 # Initialize NLTK data on module load
-_ensure_nltk_data()
+# _ensure_nltk_data()
 
 
 def verify_instructions(
