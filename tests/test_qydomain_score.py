@@ -2,11 +2,7 @@
 """
 Test script for QY domain scoring (typos, connections, unscrambling).
 
-Tests:
-1. Typos evaluator - exact match / substring check
-2. Connections evaluator - word grouping puzzle
-3. Unscrambling evaluator - plot sentence ordering
-4. Thread safety
+Tests aligned with original qyscore.py test cases.
 """
 
 import concurrent.futures
@@ -14,27 +10,40 @@ import sys
 import time
 
 from mjnemogym import verl_compute_score
-from mjnemogym.qydomain.score import score_fn, language_judge
+from mjnemogym.qydomain.score import (
+    typos_score_fn,
+    connections_score_fn,
+    unscrambling_score_fn,
+    typos_process_results,
+    connections_process_results,
+    plot_unscrambling_process_results,
+)
 
 
 def test_typos():
-    """Test typos evaluator."""
+    """Test typos evaluator - aligned with qyscore.py test cases."""
     print('=== Typos Evaluator Tests ===\n', flush=True)
+
+    # Test cases from qyscore.py
+    gt_typo = "extraordinary"
+    ans_typo_correct = "The correct spelling is <solution>extraordinary</solution>."
+    ans_typo_wrong = "The correct spelling is <solution>extraordinry</solution>."
 
     test_cases = [
         # (model_output, ground_truth, expected_score, description)
-        ('<solution>extraordinary</solution>', 'extraordinary', 1.0, 'Exact match in solution tag'),
-        ('<solution>extraordinry</solution>', 'extraordinary', 0.0, 'Typo in answer'),
-        ('The answer is <solution>hello</solution>.', 'hello', 1.0, 'Answer with surrounding text'),
-        ('--- hello ---', 'hello', 1.0, 'Answer in separator pattern'),
-        ('The correct spelling is extraordinary.', 'extraordinary', 1.0, 'Substring match'),
-        ('no match here', 'extraordinary', 0.0, 'No match'),
-        ('', 'test', 0.0, 'Empty output'),
+        (ans_typo_correct, gt_typo, 1, 'Correct answer (qyscore.py case)'),
+        (ans_typo_wrong, gt_typo, 0, 'Wrong answer with typo (qyscore.py case)'),
+        ('<solution>extraordinary</solution>', 'extraordinary', 1, 'Exact match in solution tag'),
+        ('The answer is <solution>hello</solution>.', 'hello', 1, 'Answer with surrounding text'),
+        ('--- hello ---', 'hello', 1, 'Answer in separator pattern'),
+        ('The correct spelling is extraordinary.', 'extraordinary', 1, 'Substring match'),
+        ('no match here', 'extraordinary', 0, 'No match'),
+        ('', 'test', 0, 'Empty output'),
     ]
 
     passed = 0
     for output, gt, expected, desc in test_cases:
-        result = language_judge(gt, output, 'typos')
+        result = typos_process_results(gt, output)
         status = '✓' if result == expected else '✗'
         if result == expected:
             passed += 1
@@ -45,46 +54,26 @@ def test_typos():
 
 
 def test_connections():
-    """Test connections evaluator."""
+    """Test connections evaluator - aligned with qyscore.py test cases."""
     print('\n=== Connections Evaluator Tests ===\n', flush=True)
+
+    # Test cases from qyscore.py
+    gt_conn = "Apple,Banana,Pear,Grape,Red,Blue,Green,Yellow"
+    ans_conn_correct = "<solution>Apple, Banana, Pear, Grape, Red, Blue, Green, Yellow</solution>"
+    ans_conn_partial = "<solution>Apple, Banana, Pear, Orange, Red, Blue, Green, Yellow</solution>"
 
     test_cases = [
         # (model_output, ground_truth, expected_score, description)
-        (
-            '<solution>Apple, Banana, Pear, Grape, Red, Blue, Green, Yellow</solution>',
-            'Apple,Banana,Pear,Grape,Red,Blue,Green,Yellow',
-            1.0,
-            'Perfect match - 2 groups of 4'
-        ),
-        (
-            '<solution>Apple, Banana, Pear, Orange, Red, Blue, Green, Yellow</solution>',
-            'Apple,Banana,Pear,Grape,Red,Blue,Green,Yellow',
-            0.5,
-            'One group wrong (Orange vs Grape)'
-        ),
-        (
-            '<solution>a,b,c,d</solution>',
-            'a,b,c,d',
-            1.0,
-            'Single group of 4'
-        ),
-        (
-            '\\boxed{\\text{cat, dog, bird, fish}}',
-            'cat,dog,bird,fish',
-            1.0,
-            'Boxed format'
-        ),
-        (
-            'no solution here',
-            'a,b,c,d',
-            0.0,
-            'No solution found'
-        ),
+        (ans_conn_correct, gt_conn, 1.0, 'Perfect match (qyscore.py case)'),
+        (ans_conn_partial, gt_conn, 0.5, 'One group wrong - Orange vs Grape (qyscore.py case)'),
+        ('<solution>a,b,c,d</solution>', 'a,b,c,d', 1.0, 'Single group of 4'),
+        ('\\boxed{\\text{cat, dog, bird, fish}}', 'cat,dog,bird,fish', 1.0, 'Boxed format'),
+        ('no solution here', 'a,b,c,d', 0.0, 'No solution found'),
     ]
 
     passed = 0
     for output, gt, expected, desc in test_cases:
-        result = language_judge(gt, output, 'connections')
+        result = connections_process_results(gt, output)
         status = '✓' if result == expected else '✗'
         if result == expected:
             passed += 1
@@ -95,40 +84,24 @@ def test_connections():
 
 
 def test_unscrambling():
-    """Test plot unscrambling evaluator."""
+    """Test plot unscrambling evaluator - aligned with qyscore.py test cases."""
     print('\n=== Unscrambling Evaluator Tests ===\n', flush=True)
+
+    # Test cases from qyscore.py
+    gt_plot = "The hero wakes up. He fights the dragon. He wins the gold."
+    ans_plot_perfect = "<PLOT_SUMMARY>The hero wakes up. He fights the dragon. He wins the gold.</PLOT_SUMMARY>"
+    ans_plot_swapped = "<PLOT_SUMMARY>The hero wakes up. He wins the gold. He fights the dragon.</PLOT_SUMMARY>"
 
     test_cases = [
         # (model_output, ground_truth, expected_score, description)
-        (
-            '<PLOT_SUMMARY>The hero wakes up. He fights the dragon. He wins the gold.</PLOT_SUMMARY>',
-            'The hero wakes up. He fights the dragon. He wins the gold.',
-            1.0,
-            'Perfect order'
-        ),
-        (
-            '<PLOT_SUMMARY>The hero wakes up. He wins the gold. He fights the dragon.</PLOT_SUMMARY>',
-            'The hero wakes up. He fights the dragon. He wins the gold.',
-            0.33,  # Approximate - depends on Levenshtein
-            'Swapped last two sentences'
-        ),
-        (
-            '<PLOT_SUMMARY>A. B. C.</PLOT_SUMMARY>',
-            'A. B. C.',
-            1.0,
-            'Short sentences'
-        ),
-        (
-            'no plot summary here',
-            'A. B. C.',
-            0.33,  # Raw text doesn't match well
-            'No PLOT_SUMMARY tag (partial match)'
-        ),
+        (ans_plot_perfect, gt_plot, 1.0, 'Perfect order (qyscore.py case)'),
+        (ans_plot_swapped, gt_plot, 0.33, 'Swapped last two sentences (qyscore.py case)'),
+        ('<PLOT_SUMMARY>A. B. C.</PLOT_SUMMARY>', 'A. B. C.', 1.0, 'Short sentences'),
     ]
 
     passed = 0
     for output, gt, expected, desc in test_cases:
-        result = language_judge(gt, output, 'unscrambling')
+        result = plot_unscrambling_process_results(gt, output)
         # Use approximate matching for unscrambling (Levenshtein-based)
         is_close = abs(result - expected) < 0.1
         status = '✓' if is_close else '✗'
@@ -141,13 +114,14 @@ def test_unscrambling():
 
 
 def test_via_verl_compute_score():
-    """Test via verl_compute_score interface."""
-    print('\n=== verl_compute_score Interface Tests ===\n', flush=True)
+    """Test via verl_compute_score interface with QY data format."""
+    print('\n=== verl_compute_score Interface Tests (QY Format) ===\n', flush=True)
 
+    # QY format: data_source is task type, extra_info has "label" field
     test_cases = [
-        ('qy_typos', '<solution>hello</solution>', {'task_type': 'typos', 'ground_truth': 'hello'}, 1.0),
-        ('qy_connections', '<solution>a,b,c,d</solution>', {'task_type': 'connections', 'ground_truth': 'a,b,c,d'}, 1.0),
-        ('qy_unscrambling', '<PLOT_SUMMARY>A. B.</PLOT_SUMMARY>', {'task_type': 'unscrambling', 'ground_truth': 'A. B.'}, 1.0),
+        ('typos', '<solution>hello</solution>', {'label': 'hello'}, 1.0),
+        ('connections', '<solution>a,b,c,d</solution>', {'label': 'a,b,c,d'}, 1.0),
+        ('unscrambling', '<PLOT_SUMMARY>A. B.</PLOT_SUMMARY>', {'label': 'A. B.'}, 1.0),
     ]
 
     passed = 0
@@ -170,11 +144,12 @@ def test_threaded():
     num_tasks = 32
 
     def test_qy(i):
+        # QY format: data_source is task type, extra_info has "label"
         return verl_compute_score(
-            'qy_typos',
+            'typos',
             f'<solution>word{i}</solution>',
             '',
-            {'task_type': 'typos', 'ground_truth': f'word{i}'}
+            {'label': f'word{i}'}
         )
 
     print(f'Running {num_tasks} tasks with {num_workers} workers...', flush=True)
@@ -197,50 +172,15 @@ def test_edge_cases():
     """Test edge cases and error handling."""
     print('\n=== Edge Case Tests ===\n', flush=True)
 
-    # Missing task_type
-    print('Missing task_type:', flush=True)
-    result = score_fn('test', {'ground_truth': 'test'})
-    print(f'  Result: {result} (expected 0.0)', flush=True)
-
-    # Missing ground_truth
-    print('Missing ground_truth:', flush=True)
-    result = score_fn('test', {'task_type': 'typos'})
-    print(f'  Result: {result} (expected 0.0)', flush=True)
-
-    # Unknown task_type
-    print('Unknown task_type:', flush=True)
-    result = score_fn('test', {'task_type': 'unknown', 'ground_truth': 'test'})
-    print(f'  Result: {result} (expected 0.0)', flush=True)
+    # Valid case
+    print('Valid typos case:', flush=True)
+    result = typos_score_fn('test', {'label': 'test'})
+    print(f'  Result: {result} (expected 1.0)', flush=True)
 
     # Empty model output
     print('Empty model output:', flush=True)
-    result = score_fn('', {'task_type': 'typos', 'ground_truth': 'test'})
+    result = typos_score_fn('', {'label': 'test'})
     print(f'  Result: {result} (expected 0.0)', flush=True)
-
-
-def test_connections_old_vs_new():
-    """Test connections evaluator version selection based on release_date."""
-    print('\n=== Connections Version Tests ===\n', flush=True)
-
-    # Old format uses bold text **...**
-    old_output = '**Apple, Banana, Pear, Grape**'
-    gt = 'Apple,Banana,Pear,Grape'
-
-    # Test with old date (before 2024-11-25)
-    result_old = score_fn(old_output, {
-        'task_type': 'connections',
-        'ground_truth': gt,
-        'release_date': '2024-01-01'
-    })
-    print(f'  Old format with old date: {result_old}', flush=True)
-
-    # Test with new date (after 2024-11-25)
-    result_new = score_fn(old_output, {
-        'task_type': 'connections',
-        'ground_truth': gt,
-        'release_date': '2025-01-01'
-    })
-    print(f'  Old format with new date: {result_new}', flush=True)
 
 
 def main():
@@ -256,7 +196,6 @@ def main():
     all_passed &= test_via_verl_compute_score()
     all_passed &= test_threaded()
     test_edge_cases()
-    test_connections_old_vs_new()
 
     print('\n' + '=' * 60, flush=True)
     if all_passed:

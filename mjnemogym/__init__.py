@@ -21,7 +21,11 @@ from mjnemogym.mcqa.score import score_fn as mcqa_score_fn
 from mjnemogym.instruction_following.score import score_fn as if_score_fn
 from mjnemogym.structured_outputs.score import score_fn as so_score_fn
 from mjnemogym.workplace_assistant.score import score_fn as wa_score_fn
-from mjnemogym.qydomain.score import score_fn as qy_score_fn
+from mjnemogym.qydomain import (
+    typos_score_fn,
+    connections_score_fn,
+    unscrambling_score_fn,
+)
 import functools
 
 
@@ -44,16 +48,17 @@ def extract_final_answer(func):
 
 # Map data_source values (from parquet) to score functions
 score_fn_dict = {
+    # NemoGym domains
     "nemogym_math": extract_final_answer(math_score_fn),
     "nemogym_code": extract_final_answer(code_score_fn),
     "nemogym_mcqa": extract_final_answer(mcqa_score_fn),
     "nemogym_if": extract_final_answer(if_score_fn),
     "nemogym_structured": extract_final_answer(so_score_fn),
     "nemogym_workplace": extract_final_answer(wa_score_fn),
-    # QY domains - all route to qy_score_fn which internally routes by task_type
-    "qy_typos": extract_final_answer(qy_score_fn),
-    "qy_connections": extract_final_answer(qy_score_fn),
-    "qy_unscrambling": extract_final_answer(qy_score_fn),
+    # QY domains - data_source is the task type, extra_info contains "label"
+    "typos": extract_final_answer(typos_score_fn),
+    "connections": extract_final_answer(connections_score_fn),
+    "unscrambling": extract_final_answer(unscrambling_score_fn),
 }
 
 
@@ -128,7 +133,9 @@ __all__ = [
     "if_score_fn",
     "so_score_fn",
     "wa_score_fn",
-    "qy_score_fn",
+    "typos_score_fn",
+    "connections_score_fn",
+    "unscrambling_score_fn",
     "score_fn_dict",
     "get_score_fn",
     "verl_compute_score",

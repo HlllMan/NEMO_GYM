@@ -142,7 +142,11 @@ def score_fn(model_output: str, extra_info: dict) -> float:
         return 0.0
 
     # Get response output from extra_info or parse from model_output
-    response_output = extra_info.get("response_output", [])
+    response_output = extra_info.get("response_output")
+
+    # Ensure response_output is a list (might be int/None in some samples)
+    if not isinstance(response_output, list):
+        response_output = []
 
     if not response_output and model_output:
         try:
