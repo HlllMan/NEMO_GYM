@@ -18,17 +18,24 @@ _logger = logging.getLogger("mjnemogym.math_with_judge.math_verify_method")
 
 
 def _run_with_timeout(func, timeout: float, default=None):
-    """Run a function with a thread-safe timeout."""
+    """Run a function with a thread-safe timeout.
+
+    NOTE: Uses shutdown(wait=False, cancel_futures=True) to avoid blocking
+    if the submitted function hangs (e.g. math_verify parse/verify with no internal timeout).
+    The abandoned daemon thread will eventually be cleaned up when the process exits.
+    """
+    executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
     try:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-            future = executor.submit(func)
-            return future.result(timeout=timeout)
+        future = executor.submit(func)
+        return future.result(timeout=timeout)
     except concurrent.futures.TimeoutError:
         _logger.warning(f"Operation timed out after {timeout}s")
         return default
     except Exception as e:
         _logger.debug(f"Operation failed: {e}")
         return default
+    finally:
+        executor.shutdown(wait=False, cancel_futures=True)
 
 
 def verify_answer(expected_answer: str, generated_answer: str) -> tuple[float, Optional[str]]:
