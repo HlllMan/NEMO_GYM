@@ -20,6 +20,7 @@ import json
 import multiprocessing
 import os
 import sys
+import time
 from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
@@ -29,10 +30,12 @@ from tqdm import tqdm
 
 from mjnemogym.code_gen.lcb_integration.pass_k_utils import compute_metrics_from_results
 from mjnemogym.code_gen.lcb_integration.testing_util import run_test
-
+from mjnemogym.log import get_logger
 
 sys.set_int_max_str_digits(50000)
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
+_logger = get_logger("code.exec")
 
 
 def _temp_run(in_outs, generation, debug, result, metadata_list, timeout):
@@ -57,7 +60,12 @@ def check_correctness(sample, generation, timeout, debug=True):
     try:
         in_outs = json.loads(sample["input_output"])
     except (ValueError, MemoryError):
+        _logger.warning("JSON parse failed for sample")
         return [-1], None
+
+    num_inputs = len(in_outs.get("inputs", []))
+    join_timeout = (timeout + 1) * num_inputs + 5
+    _logger.debug(f"check_correctness: num_inputs={num_inputs}, join_timeout={join_timeout}s")
 
     manager = multiprocessing.Manager()
     result = manager.list()
@@ -67,16 +75,33 @@ def check_correctness(sample, generation, timeout, debug=True):
         args=(in_outs, generation, debug, result, metadata_list, timeout),
     )
     p.start()
-    p.join(timeout=(timeout + 1) * len(in_outs["inputs"]) + 5)
+    _logger.debug(f"subprocess pid={p.pid} started, waiting up to {join_timeout}s")
+
+    p.join(timeout=join_timeout)
+
     if p.is_alive():
+        _logger.warning(f"subprocess pid={p.pid} still alive after {join_timeout}s, killing")
         p.kill()
+        p.join(timeout=5)
+
     if not result:
         # consider that all tests failed
-        result = [[-1 for i in range(len(in_outs["inputs"]))]]
-        metadata_list = [None]
-        if debug:
-            print("global timeout")
-    return result[0], metadata_list[0]
+        final_result = [-1 for i in range(num_inputs)]
+        final_metadata = None
+        _logger.debug("no results - global timeout")
+    else:
+        # Copy results BEFORE shutting down manager to avoid BrokenPipeError
+        final_result = list(result[0])
+        final_metadata = dict(metadata_list[0]) if metadata_list[0] else None
+        _logger.debug(f"got {len(final_result)} test results")
+
+    # Shutdown manager to prevent zombie server processes
+    try:
+        manager.shutdown()
+    except Exception:
+        pass
+
+    return final_result, final_metadata
 
 
 def evaluate_generations_by_problem(args):

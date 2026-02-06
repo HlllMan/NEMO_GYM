@@ -8,7 +8,10 @@
 import json
 from typing import Any, Dict, List
 
+from mjnemogym.log import get_logger
 from mjnemogym.workplace_assistant.utils import execute_actions_and_reset_state
+
+_logger = get_logger("workplace")
 
 
 def convert_strs_to_lowercase(df):
@@ -136,9 +139,11 @@ def score_fn(model_output: str, extra_info: dict) -> float:
     Returns:
         float: 1.0 (correct) or 0.0 (incorrect)
     """
+    idx = extra_info.get("index", "?")
     ground_truth = extra_info.get("ground_truth", [])
 
     if not ground_truth:
+        _logger.debug(f"DONE idx={idx} reward=0.0 reason=no_ground_truth")
         return 0.0
 
     # Get response output from extra_info or parse from model_output
@@ -151,14 +156,22 @@ def score_fn(model_output: str, extra_info: dict) -> float:
     if not response_output and model_output:
         try:
             response_output = json.loads(model_output)
-        except (json.JSONDecodeError, TypeError):
-            # If model_output is not valid JSON, try to extract function calls
+        except (json.JSONDecodeError, TypeError) as e:
+            _logger.debug(f"idx={idx} model_output JSON parse failed: {type(e).__name__}")
             response_output = []
 
     if not response_output:
+        _logger.debug(f"DONE idx={idx} reward=0.0 reason=no_response_output")
         return 0.0
 
-    return verify_workplace_assistant(
-        response_output=response_output,
-        ground_truth=ground_truth,
-    )
+    _logger.debug(f"START idx={idx} num_actions={len(response_output)}")
+    try:
+        reward = verify_workplace_assistant(
+            response_output=response_output,
+            ground_truth=ground_truth,
+        )
+        _logger.debug(f"DONE idx={idx} reward={reward}")
+        return reward
+    except Exception as e:
+        _logger.warning(f"EXCEPTION idx={idx}: {type(e).__name__}: {e}")
+        return 0.0

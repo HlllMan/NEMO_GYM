@@ -11,6 +11,10 @@ from typing import Any, Dict
 
 from openapi_schema_validator import validate as validate_against_schema_openapi
 
+from mjnemogym.log import get_logger
+
+_logger = get_logger("structured")
+
 
 class SchemaType(str, Enum):
     JSON = "json"
@@ -52,7 +56,8 @@ def evaluate_structured_output_json(schema_str: str, response_text: str) -> floa
         response_obj = json.loads(response_text)
         validate_against_schema_openapi(response_obj, schema)
         return 1.0
-    except Exception:
+    except Exception as e:
+        _logger.debug(f"validation failed: {type(e).__name__}: {e}")
         return 0.0
 
 
@@ -94,14 +99,23 @@ def score_fn(model_output: str, extra_info: dict) -> float:
     Returns:
         float: 1.0 (valid) or 0.0 (invalid)
     """
+    idx = extra_info.get("index", "?")
     schema_str = extra_info.get("schema_str", "")
     schema_type = extra_info.get("schema_type", "json")
 
     if not schema_str:
+        _logger.debug(f"DONE idx={idx} reward=0.0 reason=no_schema")
         return 0.0
 
-    return verify_structured_output(
-        model_output=model_output,
-        schema_str=schema_str,
-        schema_type=schema_type,
-    )
+    _logger.debug(f"START idx={idx}")
+    try:
+        reward = verify_structured_output(
+            model_output=model_output,
+            schema_str=schema_str,
+            schema_type=schema_type,
+        )
+        _logger.debug(f"DONE idx={idx} reward={reward}")
+        return reward
+    except Exception as e:
+        _logger.warning(f"EXCEPTION idx={idx}: {type(e).__name__}: {e}")
+        return 0.0

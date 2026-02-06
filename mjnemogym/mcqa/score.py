@@ -8,6 +8,10 @@
 import re
 from typing import Any, Literal, Optional
 
+from mjnemogym.log import get_logger
+
+_logger = get_logger("mcqa")
+
 
 # Regex patterns (directly from app.py)
 CHOICE_LETTER_PATTERN = re.compile(r"(?<![A-Za-z])([A-Za-z])(?![A-Za-z])")
@@ -192,16 +196,23 @@ def score_fn(model_output: str, extra_info: dict) -> float:
     Returns:
         float: 1.0 (correct) or 0.0 (incorrect)
     """
+    idx = extra_info.get("index", "?")
     expected_answer = extra_info.get("expected_answer")
     options = extra_info.get("options")
     grading_mode = extra_info.get("grading_mode", "strict_single_letter_boxed")
     template_metadata = extra_info.get("template_metadata")
 
-    reward, _ = verify_mcqa(
-        model_output=model_output,
-        expected_answer=expected_answer,
-        options=options,
-        grading_mode=grading_mode,
-        template_metadata=template_metadata,
-    )
-    return reward
+    _logger.debug(f"START idx={idx}")
+    try:
+        reward, _ = verify_mcqa(
+            model_output=model_output,
+            expected_answer=expected_answer,
+            options=options,
+            grading_mode=grading_mode,
+            template_metadata=template_metadata,
+        )
+        _logger.debug(f"DONE idx={idx} reward={reward}")
+        return reward
+    except Exception as e:
+        _logger.warning(f"EXCEPTION idx={idx}: {type(e).__name__}: {e}")
+        return 0.0

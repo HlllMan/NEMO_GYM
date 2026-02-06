@@ -7,7 +7,11 @@
 
 from typing import List, Literal, Optional
 
+from mjnemogym.log import get_logger
+
 from .verifiable_instructions import instructions_registry
+
+_logger = get_logger("if")
 
 
 def _ensure_nltk_data():
@@ -18,7 +22,7 @@ def _ensure_nltk_data():
     except ImportError:
         pass
     except Exception as e:
-        print(f"NLTK setup warning: {e}")
+        _logger.warning(f"NLTK setup: {e}")
 
 
 # Initialize NLTK data on module load
@@ -71,8 +75,7 @@ def verify_instructions(
                 is_following_list.append(False)
 
         except Exception as e:
-            # If there's an error processing the instruction, mark as failed
-            print(f"Error processing instruction {instruction_id}: {e}")
+            _logger.warning(f"instruction {instruction_id} error: {type(e).__name__}: {e}")
             is_following_list.append(False)
 
     # Calculate reward based on grading mode
@@ -101,17 +104,25 @@ def score_fn(model_output: str, extra_info: dict) -> float:
     Returns:
         float: Score based on grading_mode (1.0/0.0 for binary, fraction for partial)
     """
+    idx = extra_info.get("index", "?")
     instruction_id_list = extra_info.get("instruction_id_list", [])
     kwargs_list = extra_info.get("kwargs", [])
     grading_mode = extra_info.get("grading_mode", "binary")
 
     if not instruction_id_list:
+        _logger.debug(f"DONE idx={idx} reward=0.0 reason=no_instructions")
         return 0.0
 
-    reward, _, _ = verify_instructions(
-        model_output=model_output,
-        instruction_id_list=instruction_id_list,
-        kwargs_list=kwargs_list,
-        grading_mode=grading_mode,
-    )
-    return reward
+    _logger.debug(f"START idx={idx} num_instructions={len(instruction_id_list)}")
+    try:
+        reward, _, _ = verify_instructions(
+            model_output=model_output,
+            instruction_id_list=instruction_id_list,
+            kwargs_list=kwargs_list,
+            grading_mode=grading_mode,
+        )
+        _logger.debug(f"DONE idx={idx} reward={reward}")
+        return reward
+    except Exception as e:
+        _logger.warning(f"EXCEPTION idx={idx}: {type(e).__name__}: {e}")
+        return 0.0

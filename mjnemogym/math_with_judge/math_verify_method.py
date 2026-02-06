@@ -4,17 +4,18 @@
 # and custom timeout wrapper.
 
 import concurrent.futures
-import logging
 from typing import Optional
 
 from math_verify import grader
 from math_verify.parser import parse, ExprExtractionConfig, LatexExtractionConfig
 
+from mjnemogym.log import get_logger
+
 # Timeout settings (in seconds)
 PARSE_TIMEOUT = 5.0
 VERIFY_TIMEOUT = 5.0
 
-_logger = logging.getLogger("mjnemogym.math_with_judge.math_verify_method")
+_logger = get_logger("math.math_verify")
 
 
 def _run_with_timeout(func, timeout: float, default=None):

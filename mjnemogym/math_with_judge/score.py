@@ -7,26 +7,16 @@
 # 3. MathVerify (full symbolic parsing)
 
 import logging
-import sys
+import time
 
+from mjnemogym.log import get_logger
 from mjnemogym.math_with_judge import qy_parser
 from mjnemogym.math_with_judge import dapo
 from mjnemogym.math_with_judge import math_verify_method
 
-# Configure module-level logger for Ray compatibility
-_logger = logging.getLogger("mjnemogym.math_with_judge")
-_logger.setLevel(logging.DEBUG)
+_logger = get_logger("math")
 
-if not _logger.handlers:
-    _handler = logging.StreamHandler(sys.stderr)
-    _handler.setLevel(logging.DEBUG)
-    _handler.setFormatter(logging.Formatter(
-        "[%(asctime)s][mjnemogym.math][%(levelname)s] %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S"
-    ))
-    _logger.addHandler(_handler)
-    _logger.propagate = False
-
+# Suppress noisy math_verify library logs
 logging.getLogger("math_verify").setLevel(logging.CRITICAL)
 
 
@@ -48,33 +38,40 @@ def score_fn(model_output: str, extra_info: dict) -> float:
     Returns:
         float: 1.0 (correct) or 0.0 (incorrect)
     """
+    idx = extra_info.get("index", "?")
     expected_answer = extra_info.get("expected_answer", "")
     if not expected_answer:
-        _logger.debug(f"[mjnemogym.math] expected_answer is empty. extra_info keys: {list(extra_info.keys())}")
+        _logger.debug(f"idx={idx} expected_answer is empty, keys={list(extra_info.keys())}")
         return 0.0
 
     expected_answer = str(expected_answer)
+    _logger.debug(f"START idx={idx}")
+    t0 = time.time()
 
     # Method 1: QY math parser
     try:
         reward = qy_parser.score_fn(model_output, expected_answer)
         if reward > 0:
+            _logger.debug(f"DONE idx={idx} reward={reward} method=qy elapsed={time.time()-t0:.2f}s")
             return reward
     except Exception as e:
-        _logger.debug(f"QY method failed: {e}")
+        _logger.warning(f"idx={idx} QY method failed: {type(e).__name__}: {e}")
 
     # Method 2: DAPO
     try:
         reward = dapo.score_fn(model_output, expected_answer)
         if reward > 0:
+            _logger.debug(f"DONE idx={idx} reward={reward} method=dapo elapsed={time.time()-t0:.2f}s")
             return reward
     except Exception as e:
-        _logger.debug(f"DAPO method failed: {e}")
+        _logger.warning(f"idx={idx} DAPO method failed: {type(e).__name__}: {e}")
 
     # Method 3: MathVerify
     try:
         reward = math_verify_method.score_fn(model_output, expected_answer)
+        _logger.debug(f"DONE idx={idx} reward={reward} method=math_verify elapsed={time.time()-t0:.2f}s")
         return reward
     except Exception as e:
-        _logger.debug(f"MathVerify method failed: {e}")
+        _logger.warning(f"idx={idx} MathVerify method failed: {type(e).__name__}: {e}")
+        _logger.debug(f"DONE idx={idx} reward=0.0 method=all_failed elapsed={time.time()-t0:.2f}s")
         return 0.0

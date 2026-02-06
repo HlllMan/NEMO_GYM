@@ -4,14 +4,14 @@
 # Thread-safe wrapper added for Ray compatibility.
 
 import concurrent.futures
-import logging
 import re
-import sys
 from typing import Tuple
 
 from math_verify import parse, verify
 
-_logger = logging.getLogger("mjnemogym.math_with_judge.qy_parser")
+from mjnemogym.log import get_logger
+
+_logger = get_logger("math.qy_parser")
 
 # Timeout for math_verify operations
 TIMEOUT = 10.0

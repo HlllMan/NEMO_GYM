@@ -2,9 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import re
-import logging
 
-_logger = logging.getLogger("mjnemogym.qydomain")
+from mjnemogym.log import get_logger
+
+_logger = get_logger("qydomain")
 
 # ==========================================
 # Shared Helper Functions
@@ -276,17 +277,41 @@ def typos_process_results(ground_truth: str, llm_answer: str, debug=False) -> in
 
 def typos_score_fn(model_output: str, extra_info: dict) -> float:
     """Score function for typos domain."""
-    label = extra_info["label"]
-    return float(typos_process_results(label, model_output))
+    idx = extra_info.get("index", "?")
+    _logger.debug(f"START typos idx={idx}")
+    try:
+        label = extra_info["label"]
+        reward = float(typos_process_results(label, model_output))
+        _logger.debug(f"DONE typos idx={idx} reward={reward}")
+        return reward
+    except Exception as e:
+        _logger.warning(f"EXCEPTION typos idx={idx}: {type(e).__name__}: {e}")
+        return 0.0
 
 
 def connections_score_fn(model_output: str, extra_info: dict) -> float:
     """Score function for connections domain."""
-    label = extra_info["label"]
-    return float(connections_process_results(label, model_output))
+    idx = extra_info.get("index", "?")
+    _logger.debug(f"START connections idx={idx}")
+    try:
+        label = extra_info["label"]
+        reward = float(connections_process_results(label, model_output))
+        _logger.debug(f"DONE connections idx={idx} reward={reward}")
+        return reward
+    except Exception as e:
+        _logger.warning(f"EXCEPTION connections idx={idx}: {type(e).__name__}: {e}")
+        return 0.0
 
 
 def unscrambling_score_fn(model_output: str, extra_info: dict) -> float:
     """Score function for unscrambling domain."""
-    label = extra_info["label"]
-    return float(plot_unscrambling_process_results(label, model_output))
+    idx = extra_info.get("index", "?")
+    _logger.debug(f"START unscrambling idx={idx}")
+    try:
+        label = extra_info["label"]
+        reward = float(plot_unscrambling_process_results(label, model_output))
+        _logger.debug(f"DONE unscrambling idx={idx} reward={reward}")
+        return reward
+    except Exception as e:
+        _logger.warning(f"EXCEPTION unscrambling idx={idx}: {type(e).__name__}: {e}")
+        return 0.0

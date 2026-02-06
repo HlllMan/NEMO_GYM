@@ -8,6 +8,9 @@
 #
 # Usage:
 #   python tests/score_parallel.py --input data.jsonl --output scored.jsonl --workers 200
+#
+# Debug mode (verbose per-domain logging):
+#   MJNEMOGYM_DEBUG=1 python tests/score_parallel.py --input data.jsonl --output scored.jsonl
 
 import argparse
 import json
@@ -19,6 +22,9 @@ from typing import Tuple
 from tqdm import tqdm
 
 from mjnemogym import score_fn_dict
+from mjnemogym.log import get_logger
+
+_logger = get_logger("parallel")
 
 
 def score_single(args: Tuple[int, dict]) -> Tuple[int, dict, float]:
@@ -31,11 +37,19 @@ def score_single(args: Tuple[int, dict]) -> Tuple[int, dict, float]:
     data_source = item.get("data_source", "")
     response = item.get("response", "")
     extra_info = item.get("extra_info", {})
+    idx = extra_info.get("index", line_idx)
+
+    _logger.debug(f"START line={line_idx} domain={data_source} idx={idx}")
+    t0 = time.time()
 
     score_fn = score_fn_dict[data_source]
     reward = score_fn(response, extra_info)
 
-    print(f"{data_source}_index_{extra_info['index']}_rew_{reward}", flush=True)
+    elapsed = time.time() - t0
+    _logger.debug(f"DONE line={line_idx} domain={data_source} idx={idx} reward={reward} elapsed={elapsed:.2f}s")
+
+    index = extra_info.get('index', 'no_index')
+    print(f"{data_source}_index_{index}_rew_{reward}", flush=True)
     return (line_idx, item, reward)
 
 
@@ -92,6 +106,7 @@ def main():
     results = [None] * total
     total_reward = 0.0
     domain_rewards = {}
+    pending_count = total
 
     # Use spawn context for clean process isolation
     ctx = multiprocessing.get_context("spawn")
@@ -100,27 +115,51 @@ def main():
 
     with ProcessPoolExecutor(max_workers=args.workers, mp_context=ctx) as executor:
         futures = {executor.submit(score_single, item): item[0] for item in data}
+        _logger.debug(f"submitted {len(futures)} tasks to executor")
 
         with tqdm(total=total, desc="Scoring", unit="sample") as pbar:
             for future in as_completed(futures):
                 try:
-                    line_idx, item, reward = future.result()
+                    line_idx, item, reward = future.result(timeout=300)
                     item["reward"] = reward
                     results[line_idx] = item
                     total_reward += reward
+                    pending_count -= 1
 
                     # Track per-domain rewards
                     domain_rewards[item["data_source"]] = (
-                        domain_rewards.get(ds, 0) + reward
+                        domain_rewards.get(item["data_source"], 0) + reward
                     )
+
+                except TimeoutError:
+                    line_idx = futures[future]
+                    _logger.warning(f"TIMEOUT line={line_idx} (5min)")
+                    results[line_idx] = data[line_idx][1]
+                    results[line_idx]["reward"] = 0.0
+                    pending_count -= 1
 
                 except Exception as e:
                     line_idx = futures[future]
+                    _logger.warning(f"EXCEPTION line={line_idx}: {type(e).__name__}: {e}")
                     results[line_idx] = data[line_idx][1]
                     results[line_idx]["reward"] = 0.0
+                    pending_count -= 1
 
                 pbar.update(1)
-                pbar.set_postfix(reward=f"{total_reward:.0f}", refresh=False)
+                pbar.set_postfix(reward=f"{total_reward:.0f}", pending=pending_count, refresh=False)
+
+                # Log details when nearing completion
+                if pending_count <= 10:
+                    pending_info = []
+                    for f in futures:
+                        if not f.done():
+                            pl = futures[f]
+                            d = data[pl][1].get("data_source", "?")
+                            idx = data[pl][1].get("extra_info", {}).get("index", "?")
+                            pending_info.append(f"line={pl}/{d}/idx={idx}")
+                    _logger.debug(f"NEAR_END: {pending_count} remaining: {pending_info[:5]}")
+
+        _logger.debug("executor shutdown complete")
 
     elapsed = time.time() - start_time
 
